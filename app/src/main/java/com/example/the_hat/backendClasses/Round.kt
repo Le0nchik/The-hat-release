@@ -18,6 +18,8 @@ class Round(
     fun next(): Word {
         val word = dict.get()
         currentWord = word
+        wordsInRound.add(currentWord!!)
+        typeOfWordsInRound.add(TypeWord.SKIP)
         return word
     }
 
@@ -25,10 +27,7 @@ class Round(
         if (currentWord == null) {
             throw AssertionError("No current word found")
         }
-        wordsInRound.add(currentWord!!)
-        typeOfWordsInRound.add(TypeWord.DONE)
-        explainer.explain(currentWord!!)
-        guesser.guess(currentWord!!)
+        typeOfWordsInRound[typeOfWordsInRound.lastIndex] = TypeWord.DONE
         currentWord = null
     }
 
@@ -37,8 +36,6 @@ class Round(
             return false
         }
         typeOfWordsInRound[skipped_id] = TypeWord.DONE
-        explainer.explain(wordsInRound[skipped_id])
-        guesser.guess(wordsInRound[skipped_id])
         skipped_id = -1
         return true
     }
@@ -55,9 +52,7 @@ class Round(
             throw AssertionError("No current word found")
         }
         if (skipped_id != -1) return false
-        skipped_id = wordsInRound.size
-        wordsInRound.add(currentWord!!)
-        typeOfWordsInRound.add(TypeWord.SKIP)
+        skipped_id = wordsInRound.lastIndex
         currentWord = null
         return true
     }
@@ -66,8 +61,6 @@ class Round(
         if (currentWord == null) {
             throw AssertionError("No current word found")
         }
-        wordsInRound.add(currentWord!!)
-        typeOfWordsInRound.add(TypeWord.SKIP)
         currentWord = null
     }
 
@@ -78,18 +71,7 @@ class Round(
         skipped_id = -1
     }
 
-    fun failRound() {
-        for (i in wordsInRound.indices) {
-            explainer.eraseExplain()
-            guesser.eraseGuess()
-        }
-    }
-
     fun result(): DataRound {
-        if (currentWord != null) {
-            wordsInRound.add(currentWord!!)
-            typeOfWordsInRound.add(TypeWord.SKIP)
-        }
         return DataRound(wordsInRound, typeOfWordsInRound)
     }
 

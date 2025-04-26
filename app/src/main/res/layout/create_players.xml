@@ -31,20 +31,12 @@
 
     <LinearLayout
         android:id="@+id/create_players_containerTexts"
-        android:layout_width="290dp"
+        android:layout_width="match_parent"
         android:layout_height="700dp"
         android:backgroundTint="#D5D6D6"
         android:orientation="vertical"
-        app:layout_constraintEnd_toStartOf="@+id/create_players_containerButtons1"
-        app:layout_constraintTop_toTopOf="@+id/guideline2" />
-
-    <LinearLayout
-        android:id="@+id/create_players_containerButtons1"
-        android:layout_width="55dp"
-        android:layout_height="700dp"
-        android:orientation="vertical"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/guideline2" />
+        app:layout_constraintTop_toTopOf="@+id/guideline2"
+        tools:layout_editor_absoluteX="67dp" />
 
     <Button
         android:id="@+id/button"
@@ -63,16 +55,6 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         app:layout_constraintGuide_percent="0.11080711" />
-
-    <LinearLayout
-        android:id="@+id/create_players_containerButtons2"
-        android:layout_width="65dp"
-        android:layout_height="649dp"
-        android:orientation="vertical"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/guideline2">
-
-    </LinearLayout>
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guideline2"

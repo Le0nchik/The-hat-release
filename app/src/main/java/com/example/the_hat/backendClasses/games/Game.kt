@@ -11,6 +11,7 @@ import com.example.the_hat.backendClasses.dicts.Word
 abstract class Game(var players: MutableList<Player>, var dict: Dict<Word>) {
     var i: Int = -1
     var j: Int = -1
+    var ind: Int = -1
     val data: MutableList<PlayedRound> = ArrayList()
     var cur: Round? = null
 
@@ -24,6 +25,12 @@ abstract class Game(var players: MutableList<Player>, var dict: Dict<Word>) {
     abstract fun nextInd()
 
     fun nextRound() {
+        if (ind != -1) {
+            data[ind] = PlayedRound(data[ind].p1, data[ind].p2, cur!!.result())
+            ind = -1
+            cur = Round(dict, players[i], players[j])
+            return
+        }
         if (cur != null) {
             data.add(PlayedRound(i, j, cur!!.result()))
         }
@@ -32,6 +39,12 @@ abstract class Game(var players: MutableList<Player>, var dict: Dict<Word>) {
     }
 
     fun nextRound(nw: DataRound) {
+        if (ind != -1) {
+            data[ind] = PlayedRound(data[ind].p1, data[ind].p2, nw)
+            ind = -1
+            cur = Round(dict, players[i], players[j])
+            return
+        }
         data.add(PlayedRound(i, j, nw))
         nextInd()
         cur = Round(dict, players[i], players[j])
@@ -72,46 +85,57 @@ abstract class Game(var players: MutableList<Player>, var dict: Dict<Word>) {
         get() = cur!!.skip.value
 
     val playerNames: String
-        get() = players[i].name + "->" + players[j].name
+        get() = players[i].name + " -> " + players[j].name
 
     val currentWords: DataRound
         get() = cur!!.result()
 
-    fun countOfWords(): String {
-        return countOfWords(i, j)
-    }
-
-    fun countOfWords(i: Int, j: Int): String {
-        if (i == j) {
-            return ""
-        }
+    fun countOfWords(i: Int, j: Int): Int {
         return data
             .filter { it.p1 == i && it.p2 == j }
             .sumOf { pr ->
                 pr.words.types.count { it == TypeWord.DONE }
-            }.toString()
+            }
     }
 
-    fun countRounds(): List<List<Int>> {
+    fun countOfRounds(i: Int, j: Int): Int {
+        return data.count { pr -> pr.p1 == i && pr.p2 == j }
+    }
+
+    fun countOfRounds(): List<List<Int>> {
         return players.indices.map { i ->
             players.indices.map { j ->
-                data.count { pr -> pr.p1 == i && pr.p2 == j }
+                countOfRounds(i, j)
             }
         }
     }
 
-    fun countWords(): List<List<String>> {
+    fun countOfWords(): List<List<Int>> {
         return players.indices.map { i ->
             players.indices.map { j -> countOfWords(i, j) }
         }
     }
 
-    fun replay(ind: Int): Round {
-        return Round(dict, players[data[ind].p1], players[data[ind].p2])
+    fun replay(ind: Int) {
+        cur = Round(dict, players[data[ind].p1], players[data[ind].p2])
+        this.ind = ind
+        cur!!.next()
     }
 
     fun replayed(ind: Int, rnd: DataRound) {
         data[ind] = PlayedRound(data[ind].p1, data[ind].p2, rnd)
+    }
+
+    fun setBackRound() {
+        cur = Round(dict, players[i], players[j])
+    }
+
+    fun setWordType(indexRound: Int, indexWord: Int, newType: Boolean) {
+        if (newType) {
+            data[indexRound].words.types[indexWord] = TypeWord.DONE
+        } else {
+            data[indexRound].words.types[indexWord] = TypeWord.SKIP
+        }
     }
 
 

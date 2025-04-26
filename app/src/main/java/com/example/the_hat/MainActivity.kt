@@ -1,7 +1,9 @@
 package com.example.the_hat
 
 import android.annotation.SuppressLint
+import android.content.pm.ActivityInfo
 import android.graphics.Color
+import android.icu.text.DecimalFormat
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.text.Editable
@@ -20,8 +22,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
-import androidx.core.content.ContextCompat
 import com.example.the_hat.backendClasses.Player
+import com.example.the_hat.backendClasses.dataClasses.DataRound
 import com.example.the_hat.backendClasses.dicts.Dict
 import com.example.the_hat.backendClasses.dicts.TypeWord.DONE
 import com.example.the_hat.backendClasses.dicts.TypeWord.SKIP
@@ -50,20 +52,26 @@ class MainActivity : ComponentActivity() {
                 .toMutableList())
     }
 
+    @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         setContentView(R.layout.main)
         Log.i("SwitchScreen", "To main")
     }
 
 
+    @SuppressLint("UseSwitchCompatOrMaterialCode")
     fun goToMain(view: View) {
-        setContentView(R.layout.main)
+        var switch: Switch = findViewById<Switch>(R.id.game_out_allow)
+        if (switch.isChecked) {
+            setContentView(R.layout.main)
+        }
     }
 
-    fun goToAproov(view: View) {
-        setContentView(R.layout.aproov)
+    fun goToApprove(view: View) {
+        setContentView(R.layout.approve)
         Log.i("SwitchScreen", "To Aproov")
     }
 
@@ -72,7 +80,8 @@ class MainActivity : ComponentActivity() {
         var containerNames = findViewById<LinearLayout>(R.id.create_players_containerTexts)
         for (i in 0 until players.size) {
             addPlayer(view)
-            var text: EditText = containerNames.getChildAt(i) as EditText
+            var text: EditText =
+                (containerNames.getChildAt(i) as LinearLayout).getChildAt(1) as EditText
             var name: Editable = Editable.Factory.getInstance().newEditable(players[i].name)
             text.text = name
         }
@@ -84,7 +93,8 @@ class MainActivity : ComponentActivity() {
         var containerNames = findViewById<LinearLayout>(R.id.create_players_containerTexts)
         players = ArrayList()
         for (i in 0 until containerNames.childCount) {
-            var text: EditText = containerNames.getChildAt(i) as EditText
+            var text: EditText =
+                (containerNames.getChildAt(i) as LinearLayout).getChildAt(1) as EditText
             players.add(Player(text.text.toString()))
         }
         setContentView(R.layout.game_settings)
@@ -95,13 +105,24 @@ class MainActivity : ComponentActivity() {
         var time = findViewById<TextView>(R.id.game_settings_time)
         time.text = configs["time"].toString()
 
+
+        var switchEasy = findViewById<Switch>(R.id.game_settings_easyDict)
+        var switchMedium = findViewById<Switch>(R.id.game_settings_mediumDict)
+        var switchHard = findViewById<Switch>(R.id.game_settings_hardDict)
+
+        switchEasy.isChecked = configs["dictEasy"] == 1
+
+        switchMedium.isChecked = configs["dictMedium"] == 1
+
+        switchHard.isChecked = configs["dictHard"] == 1
+
         Log.i("SwitchScreen", "To Setting")
     }
 
     fun goToResults(view: View) {
         setContentView(R.layout.results)
         Log.i("SwitchScreen", "To Results")
-        updateResults(view)
+        updateResultsWords(view)
     }
 
     fun goToGame(view: View) {
@@ -114,15 +135,93 @@ class MainActivity : ComponentActivity() {
         updateHistory(view)
     }
 
-    private fun updateHistory(view: View) {
-        var texts = findViewById<LinearLayout>(R.id.history_texts)
-        var buttons = findViewById<LinearLayout>(R.id.history_buttons)
-        var boxes = findViewById<LinearLayout>(R.id.history_checkBoxes)
+    fun goToHistoryX(view: View) {
+        goToHistoryX(view)
+        game.setBackRound()
     }
 
-    fun updateResults(view: View) {
-        Log.d("pipiska", view.toString())
+    fun goToReplay(view: View) {
+        setContentView(R.layout.replay)
+        updateReplay(view)
+    }
+
+    @SuppressLint("SetTextI18n")
+    fun updateReplay(view: View) {
+        var text = findViewById<TextView>(R.id.replay_who_by_who)
+        text.text = game.cur!!.explainer.name + " -> " +game.cur!!.guesser.name
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun updateHistory(view: View) {
+        var layout: LinearLayout = findViewById<LinearLayout>(R.id.history_scroll_ll)
+
+        for (i in 0 until game.data.size) {
+            var tempLL1 = LinearLayout(this)
+            var textView = TextView(this).apply {
+                text =
+                    players[game.data[game.data.size - i - 1].p1].name + " ->" + players[game.data[game.data.size - i - 1].p2].name
+                gravity = Gravity.CENTER
+            }
+            tempLL1.addView(textView)
+
+
+            var tempLL2 = LinearLayout(this).apply {
+                gravity = Gravity.RIGHT
+            }
+            var button = Button(this).apply {
+                text = "Переиграть"
+            }
+            button.setOnClickListener {
+                game.replay(game.data.size - i - 1)
+                goToReplay(view)
+            }
+            tempLL2.addView(button)
+
+            var tempLL3 = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+            }
+
+            for (j in 0 until game.data[game.data.size - i - 1].words.words.size) {
+                var ll3 = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                }
+
+                var word = TextView(this).apply {
+                    text = game.data[game.data.size - i - 1].words.words[j].value
+                }
+
+                var check = CheckBox(this).apply {
+                    id = 10000 * i + j
+                    isChecked = game.data[game.data.size - i - 1].words.types[j] == DONE
+                }
+
+                check.setOnClickListener {
+                    game.setWordType(
+                        game.data.size - check.id / 10000 - 1,
+                        check.id % 10000,
+                        game.data[game.data.size - i - 1].words.types[j] == SKIP
+                    )
+                }
+
+                ll3.addView(check)
+                ll3.addView(word)
+
+                tempLL3.addView(ll3)
+            }
+
+
+            layout.addView(tempLL1)
+            layout.addView(tempLL2)
+            layout.addView(tempLL3)
+        }
+    }
+
+
+    fun updateResultsWords(view: View) {
+        Log.d("Update", view.toString())
         val table: TableLayout = findViewById(R.id.results_all)
+        table.removeAllViews()
 
         var row1: TableRow = TableRow(this)
 
@@ -132,20 +231,61 @@ class MainActivity : ComponentActivity() {
 
         for (i in 0 until players.size) {
             var text1: TextView = TextView(this)
-            text1.text = players[i].name
+            text1.text = players[i].name[0].toString()
             row1.addView(text1)
         }
         table.addView(row1)
 
         for (i in 0 until players.size) {
             var row2: TableRow = TableRow(this)
-
             var text1: TextView = TextView(this)
-            text1.text = players[i].name
+            text1.text = players[i].name[0].toString()
             row2.addView(text1)
+
             for (j in 0 until players.size) {
                 var text2: TextView = TextView(this)
-                text2.text = game.countOfWords(i, j)
+                if (i != j) {
+                    text2.text = game.countOfWords(i, j).toString()
+                }
+                row2.addView(text2)
+            }
+            table.addView(row2)
+        }
+    }
+
+    fun updateResultsTimes(view: View) {
+        Log.d("Update", view.toString())
+        val table: TableLayout = findViewById(R.id.results_all)
+        table.removeAllViews()
+
+        var row1: TableRow = TableRow(this)
+
+        var text: TextView = TextView(this)
+        text.text = ""
+        row1.addView(text)
+
+        for (i in 0 until players.size) {
+            var text1: TextView = TextView(this)
+            text1.text = players[i].name[0].toString()
+            row1.addView(text1)
+        }
+        table.addView(row1)
+
+        for (i in 0 until players.size) {
+            var row2: TableRow = TableRow(this)
+            var text1: TextView = TextView(this)
+            text1.text = players[i].name[0].toString()
+            row2.addView(text1)
+
+            for (j in 0 until players.size) {
+                var text2: TextView = TextView(this)
+                if (i != j) {
+                    if (game.countOfRounds(i, j) == 0) {
+                        text2.text = "0"
+                    } else {
+                        text2.text = DecimalFormat("#0.00").format((game.countOfRounds(i, j) * configs["time"]!!.toFloat()) / game.countOfWords(i, j))
+                    }
+                }
                 row2.addView(text2)
             }
             table.addView(row2)
@@ -153,30 +293,35 @@ class MainActivity : ComponentActivity() {
     }
 
 
+    @SuppressLint("UseSwitchCompatOrMaterialCode")
     private fun updateGame(view: View) {
         var text: TextView = findViewById<TextView>(R.id.game_whoByWho)
         text.text = game.playerNames
+        var switch: Switch = findViewById<Switch>(R.id.game_out_allow)
+        switch.isChecked = false
     }
 
-    private fun updateRound(view: View) {
+    fun checkRes(view: View) {
+        var switch = findViewById<Switch>(R.id.history_mode)
 
+        if (switch.isChecked) {
+            updateResultsTimes(view)
+        } else {
+            updateResultsWords(view)
+        }
     }
-
 
     @SuppressLint("WrongViewCast")
-    fun aprooving(view: View) {
+    fun approving(view: View) {
         var ll = findViewById<ScrollView>(R.id.aproov_ll).getChildAt(0) as LinearLayout
 
         ll.removeAllViews()
 
-        var arrayWords = game.data.last().words.words
-        var arrayWordsType = game.data.last().words.types
+        var arrayWords = game.cur!!.wordsInRound
+        var arrayWordsType = game.cur!!.typeOfWordsInRound
 
-        for (i in 0 until arrayWords.size - 1) {
-            var linearLayout = LinearLayout(this).apply {
-
-            }
-
+        for (i in 0 until arrayWords.size) {
+            var linearLayout = LinearLayout(this)
             linearLayout.addView(CheckBox(this).apply { isChecked = arrayWordsType[i] == DONE })
             linearLayout.addView(TextView(this).apply { text = arrayWords[i].value })
             ll.addView(linearLayout)
@@ -184,89 +329,108 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    fun aproov(view: View) {
+    fun approve(view: View) {
         var ll = findViewById<ScrollView>(R.id.aproov_ll).getChildAt(0) as LinearLayout
+        var words = game.cur
 
-        var words = game.data.last().words
-
-        for (i in 0 until words.words.size - 1) {
+        for (i in 0 until words!!.wordsInRound.size) {
             var linearLayout: LinearLayout = ll.getChildAt(i) as LinearLayout
             var v: CheckBox = linearLayout.getChildAt(0) as CheckBox
             if (v.isChecked) {
-                words.types[i] = DONE
+                words.typeOfWordsInRound[i] = DONE
+                game.cur!!.typeOfWordsInRound[i] = DONE
             } else {
-                words.types[i] = SKIP
+                words.typeOfWordsInRound[i] = SKIP
+                game.cur!!.typeOfWordsInRound[i] = SKIP
+
             }
         }
-        game.replayed(game.data.size - 1, words)
+        game.nextRound(words.result())
+        game.nextWord()
         goToGame(view)
     }
 
     @SuppressLint("ResourceAsColor")
     fun addPlayer(view: View) {
         var containerNames = findViewById<LinearLayout>(R.id.create_players_containerTexts)
-        var containerButtons1 = findViewById<LinearLayout>(R.id.create_players_containerButtons1)
-        var containerButtons2 = findViewById<LinearLayout>(R.id.create_players_containerButtons2)
+
         if (containerNames.childCount > 12) {
             Toast.makeText(this, "Максимум 13 игроков", Toast.LENGTH_SHORT).show()
             return
         }
-        val textView = EditText(this).apply {
+
+        var horizontalL = LinearLayout(this).apply {
             id = 900000 + containerNames.childCount
-            setPadding(30, 10, 10, 10)
-            height = 125
-            gravity = Gravity.CENTER_HORIZONTAL
+            orientation = LinearLayout.HORIZONTAL
         }
 
         val button1 = Button(this).apply {
-            id = 900000 + containerButtons1.childCount
-            setPadding(0, 10, 10, 10)
+            id = 900000 + containerNames.childCount
+//            setPadding(0, 15, 0, 15)
             height = 125
+            text = "X"
         }
 
         val button2 = Button(this).apply {
-            id = 900000 + containerButtons2.childCount
+            id = 900000 + containerNames.childCount
             text = "⇵"
-            setPadding(10, 10, 10, 0)
+//            setPadding(0, 15, 0, 15)
             height = 125
         }
 
+        val textView = EditText(this).apply {
+//            setPadding(10, 0, 10, 0)
+            height = 125
+            minWidth =
+                (resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt() * 3 / 2
+            gravity = Gravity.CENTER_HORIZONTAL
+            isSingleLine = true
+            maxWidth =
+                (resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt() * 3 / 2
+        }
 
-        button1.setBackgroundResource(android.R.drawable.ic_delete)
         button1.setOnClickListener {
+            Log.e("pipiska", button1.id.toString())
             containerNames.removeViewAt(button1.id - 900000)
-            containerButtons1.removeViewAt(button1.id - 900000)
-            containerButtons2.removeViewAt(button1.id - 900000)
             for (i in 0 until containerNames.childCount) {
-                containerNames.getChildAt(i).id = 900000 + i
-                containerButtons1.getChildAt(i).id = 900000 + i
-                containerButtons2.getChildAt(i).id = 900000 + i
+                var ll: LinearLayout = containerNames.getChildAt(i) as LinearLayout
+                ll.id = 900000 + i
+                ll.getChildAt(0).id = 900000 + i
+                ll.getChildAt(2).id = 900000 + i
             }
         }
 
         button2.setBackgroundColor(Color.parseColor("#D5D6D6"))
+
         button2.setOnClickListener {
             if (configs["swapPlayers"] != -1) {
-                for (i in 0 until containerButtons2.childCount) {
-                    containerButtons2.getChildAt(i).setBackgroundColor(Color.parseColor("#D5D6D6"))
+                for (i in 0 until containerNames.childCount) {
+                    var ll: LinearLayout = containerNames.getChildAt(i) as LinearLayout
+                    ll.getChildAt(0).setBackgroundColor(Color.parseColor("#D5D6D6"))
                 }
                 if (configs["swapPlayers"] != button2.id) {
                     val number: Int = configs["swapPlayers"]!!.toInt()
-                    val text1: EditText = containerNames.getChildAt(button2.id - 900000) as EditText
-                    val text2: EditText = containerNames.getChildAt(number) as EditText
-                    val text: Editable = text2.text
+                    var ll1: LinearLayout =
+                        containerNames.getChildAt(button2.id - 900000) as LinearLayout
+                    var ll2: LinearLayout = containerNames.getChildAt(number) as LinearLayout
+                    var text1: EditText = ll1.getChildAt(1) as EditText
+                    var text2: EditText = ll2.getChildAt(1) as EditText
+                    var swapText = text2.text
+
                     text2.text = text1.text
-                    text1.text = text
+                    text1.text = swapText
                 }
                 configs["swapPlayers"] = -1
             } else {
                 configs["swapPlayers"] = button2.id - 900000
-                button2.setBackgroundColor(ContextCompat.getColor(this, R.color.yellow))
+                button2.setBackgroundColor(Color.parseColor("#ffdd00"))
             }
         }
-        containerNames.addView(textView)
-        containerButtons1.addView(button1)
-        containerButtons2.addView(button2)
+
+        horizontalL.addView(button2)
+        horizontalL.addView(textView)
+        horizontalL.addView(button1)
+        containerNames.addView(horizontalL)
     }
 
 
@@ -356,7 +520,8 @@ class MainActivity : ComponentActivity() {
             return
         }
         for (i in 0 until namesLayout.childCount) {
-            val nameText: EditText = namesLayout.getChildAt(i) as EditText
+            val nameText: EditText =
+                (namesLayout.getChildAt(i) as LinearLayout).getChildAt(1) as EditText
             var name: String = nameText.text.toString()
 
             if (name.isEmpty()) {
@@ -377,7 +542,8 @@ class MainActivity : ComponentActivity() {
         }
         players = ArrayList()
         for (i in 0 until namesLayout.childCount) {
-            val nameText: EditText = namesLayout.getChildAt(i) as EditText
+            val nameText: EditText =
+                (namesLayout.getChildAt(i) as LinearLayout).getChildAt(1) as EditText
             var name: String = nameText.text.toString()
             players.add(Player(name))
         }
@@ -409,11 +575,10 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onFinish() {
-                textView.text = "Время вышло!"
-                game.nextRound()
-                game.nextWord()
-                goToAproov(view)
-                aprooving(view)
+                goToApprove(view)
+                approving(view)
+//                game.nextRound()
+//                game.nextWord()
             }
         }.start()
     }
@@ -429,7 +594,7 @@ class MainActivity : ComponentActivity() {
             var text: TextView = findViewById<TextView>(R.id.round_skippedWord)
             text.text = ""
             var button = findViewById<Button>(R.id.round_buttonDoneSkip)
-            button.text = "Пропустить слово"
+            button.text = "Пропустить"
         } else {
             game.skipWord()
             getNewWord(view)
@@ -460,4 +625,5 @@ class MainActivity : ComponentActivity() {
         var text: TextView = findViewById<TextView>(R.id.round_word)
         text.text = word.value
     }
+
 }
